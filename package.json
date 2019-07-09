@@ -1,0 +1,71 @@
+{
+  "name": "protots",
+  "version": "1.0.0",
+  "description": "Parse protobuf files into Typescript interfaces",
+  "main": "src/index.js",
+  "scripts": {
+    "test": "mocha --timeout 10000 --require ts-node/register --require source-map-support/register --recursive tests/**/*.test.ts",
+    "build": "tsc",
+    "build:clean": "rm -rf ./dist && npm run build",
+    "prepare": "npm run build:clean",
+    "coverage": "nyc mocha --timeout 10000 --require ts-node/register --require source-map-support/register --recursive tests/**/*.test.ts",
+    "lint": "tslint --project tsconfig.json"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/khaosdoctor/protots.git"
+  },
+  "keywords": [
+    "protobuf",
+    "typescript",
+    "interface"
+  ],
+  "husky": {
+    "hooks": {
+      "pre-commit": "npm run lint"
+    }
+  },
+  "nyc": {
+    "extension": [
+      ".ts",
+      ".tsx"
+    ],
+    "exclude": [
+      "**/*.d.ts",
+      "dist/**/*.*",
+      "src/index.ts",
+      "src/presentation/server.ts",
+      "coverage"
+    ],
+    "reporter": [
+      "text",
+      "html",
+      "lcov"
+    ],
+    "all": true
+  },
+  "author": "Lucas Santos <hello@lsantos.dev>",
+  "license": "GPL-3.0",
+  "bugs": {
+    "url": "https://github.com/khaosdoctor/protots/issues"
+  },
+  "homepage": "https://github.com/khaosdoctor/protots#readme",
+  "devDependencies": {
+    "@types/is-valid-path": "^0.1.0",
+    "@types/mocha": "^5.2.7",
+    "@types/node": "^12.6.1",
+    "mocha": "^6.1.4",
+    "nyc": "^14.1.1",
+    "ts-node": "^8.3.0",
+    "tslint": "^5.18.0",
+    "tslint-config-standard": "^8.0.1",
+    "tslint-eslint-rules": "^5.4.0",
+    "typescript": "^3.5.3"
+  },
+  "files": [
+    "./dist/**/*"
+  ],
+  "dependencies": {
+    "is-valid-path": "^0.1.1"
+  }
+}
