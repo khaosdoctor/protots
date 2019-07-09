@@ -8,6 +8,7 @@
   - [Summary](#Summary)
   - [Installation](#Installation)
   - [Usage](#Usage)
+    - [Example file](#Example-file)
 
 ## Installation
 
@@ -60,4 +61,54 @@ const fileString = parse(fileStream).then(result => result.toFile('your/file/pat
 
 // From a path
 const fileString = parse('./path/to/file').then(result => result.toFile('your/file/path.ts'))
+```
+
+### Example file
+
+Take this as an example protobuf file:
+
+```proto
+message Person {
+  required string name = 1;
+  required int32 id = 2;
+  required bool isFriend = 3;
+  repeated PhoneNumber phones = 4;
+}
+
+message PhoneNumber {
+  required string number = 1;
+  optional PhoneType type = 2;
+}
+
+message PhoneType {
+  optional string type = 1;
+}
+
+message AddressBook {
+  repeated Person people = 1;
+}
+```
+
+ProtoTS will convert it into:
+
+```ts
+interface Person {
+  name: string
+  id: number
+  isFriend: boolean
+  phones: PhoneNumber[]
+}
+
+interface PhoneNumber {
+  number: string
+  type?: PhoneType
+}
+
+interface PhoneType {
+  type?: string
+}
+
+interface AddressBook {
+  people: Person[]
+}
 ```
