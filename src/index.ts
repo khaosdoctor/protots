@@ -9,6 +9,7 @@ type ParsedStruct = {
   toString: () => string
   toFile: (path: string) => Promise<void>
 }
+
 type ProtobufTypes = {
   'double': string
   'float': string
@@ -72,12 +73,34 @@ async function readFile (file: string | Buffer | Readable): Promise<string[]> {
   return content.split('\n')
 }
 
-function parseLine (line: string): string {
-  if (!line) return ''
+function tokenize (line: string): string[] {
+  return line.trim().split(' ').filter(Boolean)
+}
+
+function firstToLower (word: string) {
+  return `${word[0].toLowerCase()}${word.slice(1)}`
+}
+
+function readIndentation (line: string) {
   const indent = line.length - line.trimLeft().length
   const indentChar = line[0]
 
-  const tokens = line.trim().split(' ').filter(Boolean)
+  return { indent, indentChar }
+}
+
+function parseRpcLine (line: string) {
+  const { indent, indentChar } = readIndentation(line)
+  const [,methodWithParams,,responseType] = tokenize(line.replace(/stream /ig, ''))
+  const [methodName, requestType] = methodWithParams.replace(')', '').split('(')
+
+  return `${indentChar.repeat(indent)}${firstToLower(methodName)} (${firstToLower(requestType)}: ${requestType}): ${responseType.replace(/\(|\)/ig, '')}`
+}
+
+function parseLine (line: string): string {
+  if (!line) return ''
+  const { indent, indentChar } = readIndentation(line)
+
+  const tokens = tokenize(line)
   let isRepeated = false
   let isOptional = false
 
@@ -87,7 +110,10 @@ function parseLine (line: string): string {
     case '}':
       return '}'
     case 'message':
+    case 'service':
       return `interface ${tokens[1]} {`
+    case 'rpc':
+      return parseRpcLine(line)
     case 'required':
       tokens.shift()
       break
@@ -120,5 +146,6 @@ async function parse (file: string | Buffer | Readable): Promise<ParsedStruct> {
 }
 
 module.exports = parse
+module.exports.parseRpcLine = parseRpcLine
 export default parse
-export { parse }
+export { parse, parseRpcLine }
