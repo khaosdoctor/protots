@@ -101,7 +101,7 @@ routeChat (routeNoteStream: Stream): Stream
 
 - Generic (`streamBehaviour: 'generic'`):
 
-Uses (https://npmjs.org/packages/ts-stream)[ts-stream]'s `Stream` types, which are generic.
+Uses [ts-stream](https://npmjs.org/packages/ts-stream)'s `Stream` types, which are generic.
 
 Turns the example RPC into this:
 
@@ -109,9 +109,9 @@ Turns the example RPC into this:
 routeChat (routeNoteStream: Stream<RouteNote>): Stream<RouteNote>
 ```
 
-> Note: this depends on the manual addition, by you, of the ts-stream package to your project's dependencies
+> **Important Note**: this depends on the manual addition, by you, of the ts-stream package to your project's dependencies, since `ts-stream` is a peer dependency
 
-- Strip (`streamBehaviour: 'generic'`):
+- Strip (`streamBehaviour: 'strip'`):
 
 Does not handle input and output as streams, assumes that one request will come and be returned at a time.
 
@@ -266,4 +266,4 @@ elapsedTime?: number
 
 ```
 
-> Note that indentation was not preserved, since the generated output shuold not be considered a source code file, and should not be edited by hand, and thus doesn't need to be human-readable
+> Note that indentation was not preserved, since the generated output should not be considered a source code file, and should not be edited by hand, and thus doesn't need to be human-readable

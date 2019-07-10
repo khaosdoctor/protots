@@ -73,7 +73,7 @@ function getProtoVersion (contents: string): string | null {
 }
 
 function stripUselessSyntax (contents: string): string {
-  return contents.replace(/syntax.*|option.*/gmi, '--remove--')
+  return contents.replace(/syntax.*|option .*/gmi, '--remove--')
 }
 
 function tokenize (line: string): string[] {
@@ -91,10 +91,7 @@ function parseRpcLine (line: string, streamBehaviour: StreamBehaviour) {
 
   const result = rpcRegex.exec(line)
 
-  if (!result || !result.groups) {
-    console.log(line, result)
-    return line
-  }
+  if (!result || !result.groups) return line
 
   const {
     methodName: _methodName,
@@ -156,6 +153,7 @@ function parseLine (line: string, keepComments: boolean, streamBehaviour: Stream
     case '}':
       return `}`
     case 'message':
+      return `export interface ${tokens[1]} {`
     case 'service':
       return `export interface ${tokens[1]}Service {`
     case 'rpc':
@@ -182,9 +180,7 @@ function parseLine (line: string, keepComments: boolean, streamBehaviour: Stream
 async function parse (file: string | Buffer | Readable, options: PrototsOptions = {}): Promise<ParsedStruct> {
   const { keepComments = false, streamBehaviour = StreamBehaviour.Native, stripEmtpyLines = true } = options
 
-  if (!(Object.values(StreamBehaviour).includes(streamBehaviour))) {
-    throw new Error(`"${streamBehaviour}" is not a valid stream behaviour!`)
-  }
+  if (!(Object.values(StreamBehaviour).includes(streamBehaviour))) throw new Error(`"${streamBehaviour}" is not a valid stream behaviour!`)
 
   if (!file) throw new Error('No file specified')
   const fileContents = await readFile(file)
@@ -214,6 +210,5 @@ async function parse (file: string | Buffer | Readable, options: PrototsOptions 
 }
 
 module.exports = parse
-module.exports.parseRpcLine = parseRpcLine
 export default parse
-export { parse, parseRpcLine }
+export { parse }
