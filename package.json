@@ -1,6 +1,6 @@
 {
   "name": "protots",
-  "version": "2.0.4",
+  "version": "2.0.5",
   "description": "Parse protobuf files into Typescript interfaces",
   "main": "dist/index.js",
   "bin": "dist/cli.js",
