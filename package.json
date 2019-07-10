@@ -3,6 +3,7 @@
   "version": "2.0.4",
   "description": "Parse protobuf files into Typescript interfaces",
   "main": "dist/index.js",
+  "bin": "dist/cli.js",
   "scripts": {
     "test": "npm run fixturize && mocha --timeout 10000 --require ts-node/register --require source-map-support/register --recursive tests/**/*.test.ts",
     "build": "tsc",
@@ -69,6 +70,7 @@
   ],
   "dependencies": {
     "@types/chai": "^4.1.7",
+    "caporal": "^1.2.0",
     "change-case": "^3.1.0",
     "is-valid-path": "^0.1.1"
   }
