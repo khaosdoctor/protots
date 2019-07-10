@@ -87,7 +87,7 @@ function getRpcType (type: string, isStream: boolean, behaviour: StreamBehaviour
 }
 
 function parseRpcLine (line: string, streamBehaviour: StreamBehaviour) {
-  const rpcRegex = /rpc (?<methodName>[^(]+)\((?<requestStream>stream)? ?(?<requestType>[^)]+)\) ?returns ?\((?<responseStream>stream)? ?(?<responseType>[^)]+)\) ?{}/igm
+  const rpcRegex = /rpc (?<methodName>[^(]+)\((?<requestStream>stream)? ?(?<requestType>[^)]+)\) ?returns ?\((?<responseStream>stream)? ?(?<responseType>[^)]+)\)/igm
 
   const result = rpcRegex.exec(line)
 
