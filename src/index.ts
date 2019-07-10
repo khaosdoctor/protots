@@ -9,6 +9,11 @@ let syntax = 'proto3'
 let hasPackage = false
 const writeAsync = promisify(fs.writeFile)
 
+function reset () {
+  syntax = 'proto3'
+  hasPackage = false
+}
+
 type ParsedStruct = {
   toString: () => string
   toFile: (path: string) => Promise<void>
@@ -200,6 +205,8 @@ async function parse (file: string | Buffer | Readable, options: PrototsOptions 
   if (hasPackage) result.push('}')
 
   const parsed = result.join('\n')
+
+  reset()
 
   return {
     toString: () => parsed,
