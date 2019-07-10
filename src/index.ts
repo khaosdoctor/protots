@@ -1,9 +1,9 @@
 import fs from 'fs'
 import path from 'path'
+import toCase from 'change-case'
 import { promisify } from 'util'
 import { Readable } from 'stream'
 import isPathValid from 'is-valid-path'
-import toCase from 'change-case'
 
 let syntax = 'proto3'
 let hasPackage = false
@@ -30,6 +30,18 @@ type ProtobufTypes = {
   'bool': string
   'string': string
   'bytes': string
+}
+
+export enum StreamBehaviour {
+  Strip = 'strip',
+  Generic = 'generic',
+  Native = 'native'
+}
+
+export interface PrototsOptions {
+  keepComments?: boolean,
+  streamBehaviour?: StreamBehaviour,
+  stripEmtpyLines?: boolean
 }
 
 async function readFileStream (stream: Readable): Promise<string> {
@@ -61,31 +73,48 @@ function getProtoVersion (contents: string): string | null {
 }
 
 function stripUselessSyntax (contents: string): string {
-  return contents.replace(/syntax.*|option.*/gmi, '')
+  return contents.replace(/syntax.*|option.*/gmi, '--remove--')
 }
-
 
 function tokenize (line: string): string[] {
   return line.trim().split(' ').filter(Boolean)
 }
 
-function firstToLower (word: string) {
-  return `${word[0].toLowerCase()}${word.slice(1)}`
+function getRpcType (type: string, isStream: boolean, behaviour: StreamBehaviour) {
+  if (!isStream || behaviour === StreamBehaviour.Strip) return type
+
+  return behaviour === StreamBehaviour.Native ? 'Stream' : `Stream<${type}>`
 }
 
-function readIndentation (line: string) {
-  const indent = line.length - line.trimLeft().length
-  const indentChar = line[0]
+function parseRpcLine (line: string, streamBehaviour: StreamBehaviour) {
+  const rpcRegex = /rpc (?<methodName>[^(]+)\((?<requestStream>stream)? ?(?<requestType>[^)]+)\) ?returns ?\((?<responseStream>stream)? ?(?<responseType>[^)]+)\) ?{}/igm
 
-  return { indent, indentChar }
-}
+  const result = rpcRegex.exec(line)
 
-function parseRpcLine (line: string) {
-  const { indent, indentChar } = readIndentation(line)
-  const [, methodWithParams, , responseType] = tokenize(line.replace(/stream /ig, ''))
-  const [methodName, requestType] = methodWithParams.replace(')', '').split('(')
+  if (!result || !result.groups) {
+    console.log(line, result)
+    return line
+  }
 
-  return `${indentChar.repeat(indent)}${firstToLower(methodName)} (${firstToLower(requestType)}: ${requestType}): ${responseType.replace(/\(|\)/ig, '')}`
+  const {
+    methodName: _methodName,
+    requestStream: _requestStream,
+    requestType: _requestType,
+    responseStream: _responseStream,
+    responseType: _responseType
+  } = result.groups
+
+  const methodName = toCase.camel(_methodName)
+
+  const requestVariableName = _requestStream && streamBehaviour !== StreamBehaviour.Strip
+    ? `${toCase.camel(_requestType)}Stream`
+    : toCase.camel(_requestType)
+
+  const requestType = getRpcType(_requestType, Boolean(_requestStream), streamBehaviour)
+  const responseType = getRpcType(_responseType, Boolean(_responseStream), streamBehaviour)
+
+  return `${methodName} (${requestVariableName}: ${requestType}): ${responseType}`
+
 }
 
 function convertToTypescriptTypes (token: keyof ProtobufTypes) {
@@ -110,9 +139,12 @@ function convertToTypescriptTypes (token: keyof ProtobufTypes) {
   return types[token] || token
 }
 
-function parseLine (line: string): string {
-  if (!line) return ''
-  const { indent, indentChar } = readIndentation(line)
+function getLineParser (keepComments: boolean, streamBehaviour: StreamBehaviour, stripEmptyLines: boolean) {
+  return (line: string) => parseLine(line, keepComments, streamBehaviour, stripEmptyLines)
+}
+
+function parseLine (line: string, keepComments: boolean, streamBehaviour: StreamBehaviour, stripEmptyLines: boolean): string {
+  if (!line) return stripEmptyLines ? '--remove--' : ''
 
   const tokens = tokenize(line)
   let isRepeated = false
@@ -120,17 +152,17 @@ function parseLine (line: string): string {
 
   switch (tokens[0]) {
     case '//':
-      return line
+      return keepComments ? line : '--remove--'
     case '}':
-      return `${' '.repeat(hasPackage ? 2 : 0)}}`
+      return `}`
     case 'message':
     case 'service':
-      return `${' '.repeat(hasPackage ? 2 : 0)}interface ${tokens[1]} {`
+      return `export interface ${tokens[1]}Service {`
     case 'rpc':
-      return parseRpcLine(line)
+      return parseRpcLine(line, streamBehaviour)
     case 'package':
       hasPackage = true
-      return `namespace ${toCase.pascal(tokens[1].replace(';', ''))} {`
+      return `export namespace ${toCase.pascal(tokens[1].replace(';', ''))} {`
     case 'required':
       isOptional = false
       tokens.shift()
@@ -144,21 +176,34 @@ function parseLine (line: string): string {
       tokens.shift()
   }
 
-  return `${indentChar.repeat(indent + (hasPackage ? 2 : 0))}${tokens[1]}${isOptional ? '?' : ''}: ${convertToTypescriptTypes(tokens[0] as any)}${isRepeated ? '[]' : ''}`
+  return `${toCase.camel(tokens[1])}${isOptional ? '?' : ''}: ${convertToTypescriptTypes(tokens[0] as any)}${isRepeated ? '[]' : ''}`
 }
 
-async function parse (file: string | Buffer | Readable): Promise<ParsedStruct> {
+async function parse (file: string | Buffer | Readable, options: PrototsOptions = {}): Promise<ParsedStruct> {
+  const { keepComments = false, streamBehaviour = StreamBehaviour.Native, stripEmtpyLines = true } = options
+
+  if (!(Object.values(StreamBehaviour).includes(streamBehaviour))) {
+    throw new Error(`"${streamBehaviour}" is not a valid stream behaviour!`)
+  }
+
   if (!file) throw new Error('No file specified')
   const fileContents = await readFile(file)
 
   syntax = getProtoVersion(fileContents) || syntax
+  const clean = stripUselessSyntax(fileContents)
+  const streamImportLine = `import Stream from '${streamBehaviour === StreamBehaviour.Native ? 'stream' : 'ts-stream'}'`
 
-  let parsed = ''
-  for (const line of stripUselessSyntax(fileContents).split('\n')) {
-    parsed += `${parseLine(line)}\n`
-  }
+  const lines = clean.split('\n')
+    .map(getLineParser(keepComments, streamBehaviour, stripEmtpyLines))
+    .filter(line => !(/--remove--/.test(line)))
 
-  parsed += hasPackage ? '}\n' : ''
+  const result = /stream/igm.test(clean) && streamBehaviour !== StreamBehaviour.Strip
+    ? [streamImportLine, '', ...lines]
+    : lines
+
+  if (hasPackage) result.push('}')
+
+  const parsed = result.join('\n')
 
   return {
     toString: () => parsed,
